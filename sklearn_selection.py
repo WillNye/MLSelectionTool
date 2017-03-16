@@ -22,15 +22,20 @@ class PMDiscoveryTool:
         self.x = self.data[feature_cols]
 
     def logistic_regression_selection(self):
-        print("\nLogistic Regression Accuracy")
+        print("\nLogistic Regression Accuracy\n")
         log_reg = LogisticRegression()
         x_train, x_test, y_train, y_test = train_test_split(self.x, self.y, random_state=0)
         log_reg.fit(x_train, y_train)
         y_pred_class = log_reg.predict(x_test)
+        try:
+            roc_auc = cross_val_score(log_reg, self.x, self.y, cv=10, scoring='roc_auc')
+            print('roc_auc Mean Accuracy: {}%\n'.format(roc_auc.mean() * 100))
+        except Exception as e:
+            print(e)
         log_reg_cm = confusion_matrix(y_test, y_pred_class)
         total_predictions = sum([sum(sub_list) for sub_list in log_reg_cm])
         col_results = calc_sens_and_spec(log_reg_cm, total_predictions)
-        print('Initial Threshold ')
+        print('confusion matrix:\nInitial Threshold ')
         display_results(col_results)
 
         if not self.expensive:
