@@ -10,7 +10,7 @@ def pima_example():
 
     feature_cols = ['pregnant', 'insulin', 'bmi', 'age']
 
-    pima_data = PMDiscoveryTool(pima, pima[feature_cols], pima.label)
+    pima_data = PMDiscoveryTool(pima, pima[feature_cols], pima.label, expensive=False)
     pima_data.set_feature_cols(feature_cols)
 
     pima_data.logistic_regression_selection()

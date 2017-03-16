@@ -2,10 +2,11 @@ import pandas as pd
 import numpy as np
 from sklearn.linear_model import LinearRegression, LogisticRegression
 from sklearn.model_selection import train_test_split, cross_val_score, GridSearchCV, RandomizedSearchCV
+from sklearn.preprocessing import binarize
 from sklearn.neighbors import KNeighborsClassifier
-from sklearn.metrics import accuracy_score, confusion_matrix
-from sklearn.datasets import load_iris
-import matplotlib.pyplot as plt
+from sklearn.metrics import confusion_matrix
+
+from utils.linear_model_utils import calc_sens_and_spec, display_results
 
 
 class PMDiscoveryTool:
@@ -28,18 +29,46 @@ class PMDiscoveryTool:
         y_pred_class = log_reg.predict(x_test)
         log_reg_cm = confusion_matrix(y_test, y_pred_class)
         total_predictions = sum([sum(sub_list) for sub_list in log_reg_cm])
-        for feature in range(len(log_reg_cm)):
-            feature_selection_cnt = sum([sub_list[feature] for sub_list in log_reg_cm])
-            predict_percent = int((feature_selection_cnt/total_predictions) * 100)
-            accuracy = int((log_reg_cm[feature][feature]/sum(log_reg_cm[feature])) * 100)
-            print('Col {} - (Accuracy: {}%, Predicted: {}%)'.format(feature, accuracy, predict_percent))
+        col_results = calc_sens_and_spec(log_reg_cm, total_predictions)
+        print('Initial Threshold ')
+        display_results(col_results)
+
+        if not self.expensive:
+            # perform a binary search to find the optimal threshold
+            threshold = (col_results[len(col_results)-1]['predict_percent']-2) / 100
+            most_accurate = {'results': col_results, 'threshold': .5}
+            least_deviation = {'results': col_results, 'threshold': threshold}
+
+            for x in range(5):
+                y_pred_prob = log_reg.predict_proba(x_test)[:, 1]
+                binarize_pred = binarize(y_pred_prob, threshold)[0]
+                log_reg_cm = confusion_matrix(y_test, binarize_pred)
+                col_results = calc_sens_and_spec(log_reg_cm, total_predictions)
+                threshold += .01
+
+                if sum([col['correct_prediction'] for col in col_results]) > sum(
+                        [col['correct_prediction'] for col in most_accurate['results']]):
+                    most_accurate['results'] = col_results
+                    most_accurate['threshold'] = threshold
+
+                if max([c['accuracy'] for c in col_results]) - min(
+                        [c['accuracy'] for c in col_results]) < max(
+                        [c['accuracy'] for c in least_deviation['results']]) - min(
+                        [c['accuracy'] for c in least_deviation['results']]):
+                    least_deviation['results'] = col_results
+                    least_deviation['threshold'] = threshold
+
+            print('\nThreshold {0:.2f} had the most correct predictions'.format(most_accurate['threshold']))
+            display_results(most_accurate['results'])
+            print('\nThreshold {0:.2f} had the least deviation predictions'.format(least_deviation['threshold']))
+            display_results(least_deviation['results'])
 
     def linear_regression_selection(self):
         lm = LinearRegression()
         scores = cross_val_score(lm, self.x, self.y, cv=10, scoring='neg_mean_squared_error')
         scores = -scores
         rmse_scores = np.sqrt(scores)
-        print('\nLinear Regression Accuracy: {}%'.format(int((1 - rmse_scores.mean()) * 100)))
+        print('\nLinear Regression Accuracy - {}%'.format(int((1 - rmse_scores.mean()) * 100)))
 
     def kneighbors_classifier_selection(self, min_range=1, max_range=31, weight_options=[]):
         k_range = range(min_range, max_range)
@@ -56,6 +85,6 @@ class PMDiscoveryTool:
 
         grid.fit(self.x, self.y)
 
-        print(grid.best_score_)
-        print(grid.best_params_)
-        print(grid.best_estimator_)
+        print('KNeighbors -\n  Accuracy {}%\n  Best Params {},\n  Classifier {}'.format(grid.best_score_ * 100,
+                                                                                  grid.best_params_,
+                                                                                  grid.best_estimator_))

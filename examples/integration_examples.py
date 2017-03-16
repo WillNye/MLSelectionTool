@@ -10,8 +10,7 @@ def knn_and_linear():
 
     feature_cols = ['pregnant', 'insulin', 'bmi', 'age']
 
-    pima_data = PMDiscoveryTool(pima, pima, pima.label)
-    print("KNeighbors")
+    pima_data = PMDiscoveryTool(pima, pima, pima.label, expensive=False)
     pima_data.kneighbors_classifier_selection()
 
     # Set feature columns on x to perform compare against linear models
