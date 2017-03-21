@@ -4,7 +4,7 @@ from sklearn.linear_model import LinearRegression, LogisticRegression
 from sklearn.model_selection import train_test_split, cross_val_score, GridSearchCV, RandomizedSearchCV
 from sklearn.preprocessing import binarize
 from sklearn.neighbors import KNeighborsClassifier
-from sklearn.metrics import confusion_matrix
+from sklearn.metrics import confusion_matrix, accuracy_score
 
 from utils.linear_model_utils import calc_sens_and_spec, display_results
 
@@ -14,12 +14,19 @@ class PMDiscoveryTool:
         self.data = init_data
         self.x = init_x
         self.y = init_y
+        self.x_train, self.x_test, self.y_train, self.y_test = None
         self.expensive = expensive
         self.feature_cols = None
+        self.log_reg = None
 
     def set_feature_cols(self, feature_cols):
         self.feature_cols = feature_cols
         self.x = self.data[feature_cols]
+
+    def logistic_regression(self, rand=0):
+        self.log_reg = LogisticRegression()
+        self.x_train, self.x_test, self.y_train, self.y_test = train_test_split(self.x, self.y, random_state=rand)
+        self.log_reg.fit(self.x_train, self.y_train)
 
     def logistic_regression_selection(self):
         print("\nLogistic Regression Accuracy\n")
